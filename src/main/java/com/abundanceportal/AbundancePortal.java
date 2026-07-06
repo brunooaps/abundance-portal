@@ -7,6 +7,10 @@ import net.minecraft.resources.Identifier;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import com.abundanceportal.portal.PortalCommands;
+import com.abundanceportal.portal.PortalEventManager;
+import com.abundanceportal.portal.PortalTypes;
+
 public class AbundancePortal implements ModInitializer {
 	public static final String MOD_ID = "abundance_portal";
 
@@ -22,6 +26,10 @@ public class AbundancePortal implements ModInitializer {
 		// Proceed with mild caution.
 
 		LOGGER.info("Abundance Portal mod loaded!");
+
+		PortalTypes.bootstrap();
+		PortalEventManager.init();
+		PortalCommands.init();
 	}
 
 	public static Identifier id(String path) {
