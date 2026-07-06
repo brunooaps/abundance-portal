@@ -1,0 +1,38 @@
+{
+	"schemaVersion": 1,
+	"id": "abundance_portal",
+	"version": "${version}",
+	"name": "Abundance Portal",
+	"description": "A mod based on the universe of Bruno's book.",
+	"authors": [
+		"Bruno"
+	],
+	"contact": {
+		"homepage": "https://github.com/brunooaps/abundance-portal",
+		"sources": "https://github.com/brunooaps/abundance-portal"
+	},
+	"license": "CC0-1.0",
+	"icon": "assets/abundance_portal/icon.png",
+	"environment": "*",
+	"entrypoints": {
+		"main": [
+			"com.abundanceportal.AbundancePortal"
+		],
+		"client": [
+			"com.abundanceportal.client.AbundancePortalClient"
+		]
+	},
+	"mixins": [
+		"abundance_portal.mixins.json",
+		{
+			"config": "abundance_portal.client.mixins.json",
+			"environment": "client"
+		}
+	],
+	"depends": {
+		"fabricloader": ">=0.19.3",
+		"minecraft": "~26.2",
+		"java": ">=25",
+		"fabric-api": "*"
+	}
+}

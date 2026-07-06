@@ -1,0 +1,14 @@
+{
+	"required": true,
+	"package": "com.abundanceportal.mixin",
+	"compatibilityLevel": "JAVA_25",
+	"mixins": [
+		"AbundancePortalMixin"
+	],
+	"injectors": {
+		"defaultRequire": 1
+	},
+	"overwrites": {
+		"requireAnnotations": true
+	}
+}
