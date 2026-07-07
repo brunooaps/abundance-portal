@@ -18,7 +18,7 @@ public class PortalRingRenderer extends EntityRenderer<PortalRingEntity, EntityR
 
 	// The Blockbench model is modeled small; blow it up to a dramatic in-sky size.
 	// Tweak this once you've seen it in-game.
-	private static final float SCALE = 5.0F;
+	private static final float SCALE = 8.0F;
 
 	private final PortalRingModel model;
 

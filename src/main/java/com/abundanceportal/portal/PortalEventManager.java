@@ -7,15 +7,17 @@ import net.fabricmc.fabric.api.event.lifecycle.v1.ServerTickEvents;
 
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.SectionPos;
+import net.minecraft.core.particles.DustParticleOptions;
 import net.minecraft.core.particles.ParticleOptions;
 import net.minecraft.core.particles.ParticleTypes;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.entity.EntitySpawnReason;
+import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.EntityTypes;
 import net.minecraft.world.entity.LightningBolt;
-import net.minecraft.world.entity.monster.Giant;
+import net.minecraft.world.entity.Mob;
 import net.minecraft.world.level.levelgen.Heightmap;
 import net.minecraft.world.phys.Vec3;
 
@@ -41,6 +43,22 @@ public final class PortalEventManager {
 	// Particles are sent with the "override limiter" flag so they reach players at this range
 	// (normal particle packets are dropped past 32 blocks).
 	private static final int PARTICLE_SPREAD_RADIUS = 100;
+
+	// Multicolored tornado connecting the portal to the ground - since the sky itself doesn't
+	// change color, this is what sells the "something unnatural is happening here" read.
+	private static final DustParticleOptions[] TORNADO_COLORS = {
+		new DustParticleOptions(0xFF3B3B, 2.0F),
+		new DustParticleOptions(0xFF8C1A, 2.0F),
+		new DustParticleOptions(0xFFEB3B, 2.0F),
+		new DustParticleOptions(0x4CAF50, 2.0F),
+		new DustParticleOptions(0x29B6F6, 2.0F),
+		new DustParticleOptions(0x7C4DFF, 2.0F),
+		new DustParticleOptions(0xFF4DFF, 2.0F)
+	};
+	private static final int TORNADO_PARTICLES_PER_TICK = 40;
+	private static final double TORNADO_RADIUS = 2.5;
+	private static final double TORNADO_TURNS = 4.0;
+	private static final double TORNADO_SPIN_SPEED = 0.15;
 
 	private static long nextEventTick = -1;
 	private static int effectTicksRemaining = 0;
@@ -161,7 +179,7 @@ public final class PortalEventManager {
 		spawnPortalParticles(level);
 
 		if (effectTicksRemaining <= 0) {
-			spawnGiant(level);
+			spawnCreature(level);
 
 			if (ringEntity != null) {
 				ringEntity.discard();
@@ -191,8 +209,7 @@ public final class PortalEventManager {
 	private static void spawnPortalParticles(ServerLevel level) {
 		BlockPos skyPos = groundPos.above(PORTAL_HEIGHT);
 
-		// The portal ring model itself now provides the centerpiece visual; particles here are
-		// just atmosphere scattered around and below it.
+		spawnPortalTornado(level, skyPos);
 
 		// Scatter particles across the whole sky area around the portal, so anyone within
 		// PARTICLE_SPREAD_RADIUS blocks sees something happening overhead, not just a single point.
@@ -204,11 +221,24 @@ public final class PortalEventManager {
 			double py = skyPos.getY() + RANDOM.nextDouble() * 20 - 10;
 			sendFarParticles(level, ParticleTypes.PORTAL, px, py, pz, 10, 2.0, 2.0, 2.0, 0.1);
 		}
+	}
 
-		// A dense column between the ground and the portal, so it reads as a beam from a distance.
-		for (int i = 0; i < 15; i++) {
-			int y = groundPos.getY() + RANDOM.nextInt(PORTAL_HEIGHT);
-			sendFarParticles(level, ParticleTypes.SOUL, groundPos.getX() + 0.5, y, groundPos.getZ() + 0.5, 6, 1.5, 1.5, 1.5, 0.02);
+	// A multicolored, spiraling "tornado" connecting the ground to the portal: wide near the
+	// portal, narrowing down to the ground, spinning continuously over the course of the event.
+	private static void spawnPortalTornado(ServerLevel level, BlockPos skyPos) {
+		double totalHeight = skyPos.getY() - groundPos.getY();
+		double angleStep = (Math.PI * 2 * TORNADO_TURNS) / totalHeight;
+
+		for (int i = 0; i < TORNADO_PARTICLES_PER_TICK; i++) {
+			double heightFraction = RANDOM.nextDouble();
+			double y = groundPos.getY() + heightFraction * totalHeight;
+			double angle = y * angleStep + effectTicksRemaining * TORNADO_SPIN_SPEED;
+			double radius = TORNADO_RADIUS * (0.3 + 0.7 * heightFraction);
+			double x = groundPos.getX() + 0.5 + Math.cos(angle) * radius;
+			double z = groundPos.getZ() + 0.5 + Math.sin(angle) * radius;
+
+			DustParticleOptions color = TORNADO_COLORS[RANDOM.nextInt(TORNADO_COLORS.length)];
+			sendFarParticles(level, color, x, y, z, 1, 0.05, 0.05, 0.05, 0.0);
 		}
 	}
 
@@ -220,16 +250,23 @@ public final class PortalEventManager {
 		level.sendParticles(particle, true, true, x, y, z, count, xDist, yDist, zDist, speed);
 	}
 
-	private static void spawnGiant(ServerLevel level) {
-		Giant giant = EntityTypes.GIANT.create(level, EntitySpawnReason.EVENT);
-		if (giant == null) {
+	// Picks a random entry from PortalCreatureRegistry (Giant/Warden/Wither for now, but other
+	// mods can add their own entries there) and spawns it at the portal's ground position.
+	private static void spawnCreature(ServerLevel level) {
+		EntityType<? extends Mob> creatureType = PortalCreatureRegistry.pickRandom(RANDOM);
+		if (creatureType == null) {
 			return;
 		}
 
-		giant.snapTo(Vec3.atBottomCenterOf(groundPos));
-		giant.finalizeSpawn(level, level.getCurrentDifficultyAt(giant.blockPosition()), EntitySpawnReason.EVENT, null);
-		level.addFreshEntity(giant);
+		Mob mob = creatureType.create(level, EntitySpawnReason.EVENT);
+		if (mob == null) {
+			return;
+		}
 
-		AbundancePortal.LOGGER.info("Abundance Portal spawned a Giant at {}", groundPos);
+		mob.snapTo(Vec3.atBottomCenterOf(groundPos));
+		mob.finalizeSpawn(level, level.getCurrentDifficultyAt(mob.blockPosition()), EntitySpawnReason.EVENT, null);
+		level.addFreshEntity(mob);
+
+		AbundancePortal.LOGGER.info("Abundance Portal spawned a {} at {}", creatureType.getDescription().getString(), groundPos);
 	}
 }

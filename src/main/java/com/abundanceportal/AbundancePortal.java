@@ -8,6 +8,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import com.abundanceportal.portal.PortalCommands;
+import com.abundanceportal.portal.PortalCreatureRegistry;
 import com.abundanceportal.portal.PortalEventManager;
 import com.abundanceportal.portal.PortalTypes;
 
@@ -28,6 +29,7 @@ public class AbundancePortal implements ModInitializer {
 		LOGGER.info("Abundance Portal mod loaded!");
 
 		PortalTypes.bootstrap();
+		PortalCreatureRegistry.bootstrap();
 		PortalEventManager.init();
 		PortalCommands.init();
 	}
